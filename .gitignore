@@ -1,0 +1,10 @@
+.claude/
+.venv/
+.idea/
+dataset/
+dataset_processed/
+CLAUDE.md
+*.png
+*.jpg
+*.pt
+.env

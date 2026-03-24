@@ -1,0 +1,59 @@
+name: prepare_dataset
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: install deps
+        run: pip install kaggle pillow pycocotools awscli
+
+      - name: check s3
+        id: check
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.YC_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.YC_SECRET_ACCESS_KEY }}
+          YC_BUCKET_NAME: ${{ secrets.YC_BUCKET_NAME }}
+        run: |
+          RESULT=$(aws s3 ls s3://$YC_BUCKET_NAME/second/cv/dataset_processed.tar.gz \
+            --endpoint-url https://storage.yandexcloud.net 2>/dev/null || true)
+          if echo "$RESULT" | grep -q "dataset_processed.tar.gz"; then
+            echo "S3_EXISTS=yes" >> $GITHUB_ENV
+          else
+            echo "S3_EXISTS=no" >> $GITHUB_ENV
+          fi
+
+      - name: download dataset
+        if: env.S3_EXISTS == 'no'
+        env:
+          KAGGLE_USERNAME: ${{ secrets.KAGGLE_USERNAME }}
+          KAGGLE_KEY: ${{ secrets.KAGGLE_KEY }}
+        run: python py/download_dataset.py
+
+      - name: preprocess
+        if: env.S3_EXISTS == 'no'
+        run: python py/preprocess.py
+
+      - name: archive
+        if: env.S3_EXISTS == 'no'
+        run: tar -czf dataset_processed.tar.gz dataset_processed/
+
+      - name: upload to s3
+        if: env.S3_EXISTS == 'no'
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.YC_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.YC_SECRET_ACCESS_KEY }}
+          YC_BUCKET_NAME: ${{ secrets.YC_BUCKET_NAME }}
+        run: |
+          aws s3 cp dataset_processed.tar.gz s3://$YC_BUCKET_NAME/second/cv/dataset_processed.tar.gz \
+            --endpoint-url https://storage.yandexcloud.net
