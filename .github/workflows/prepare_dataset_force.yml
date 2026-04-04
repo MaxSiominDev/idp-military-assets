@@ -27,7 +27,9 @@ jobs:
         run: python py/preprocess.py
 
       - name: archive
-        run: tar -czf dataset_processed.tar.gz dataset_processed/
+        run: |
+          tar -czf dataset_processed.tar.gz dataset_processed/
+          tar -czf dataset_detection.tar.gz dataset_detection/
 
       - name: upload to s3
         env:
@@ -36,4 +38,6 @@ jobs:
           YC_BUCKET_NAME: ${{ secrets.YC_BUCKET_NAME }}
         run: |
           aws s3 cp dataset_processed.tar.gz s3://$YC_BUCKET_NAME/second/cv/dataset_processed.tar.gz \
+            --endpoint-url https://storage.yandexcloud.net
+          aws s3 cp dataset_detection.tar.gz s3://$YC_BUCKET_NAME/second/cv/dataset_detection.tar.gz \
             --endpoint-url https://storage.yandexcloud.net

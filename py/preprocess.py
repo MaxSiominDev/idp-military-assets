@@ -155,10 +155,17 @@ print("preparing yolo detection dataset...")
 
 DETECT_DIR = BASE / "dataset_detection"
 
+img_to_cls: dict[str, str] = {}
+for c in CLASSES:
+    for p in (PROCESSED_DIR / c).glob("*.jpg"):
+        img_to_cls[p.name] = c
+
 ann_map: dict[str, list[dict]] = {}
 with open(BB_OUT, newline="", encoding="utf-8") as f:
     for row in csv.DictReader(f):
-        ann_map.setdefault(row["image"], []).append(row)
+        fname = row["image"]
+        if fname in img_to_cls:
+            ann_map.setdefault(fname, []).append(row)
 
 all_imgs = sorted(ann_map.keys())
 n        = len(all_imgs)
@@ -172,7 +179,7 @@ for split, split_idx in [("train", indices[:n_train]), ("val", indices[n_train:]
     for i in split_idx:
         fname    = all_imgs[i]
         anns     = ann_map[fname]
-        cls_name = anns[0]["class"]
+        cls_name = img_to_cls[fname]
 
         shutil.copy2(PROCESSED_DIR / cls_name / fname, DETECT_DIR / "images" / split / fname)
 

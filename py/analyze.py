@@ -9,7 +9,7 @@ from PIL import Image, ImageOps, ImageEnhance
 sys.stdout.reconfigure(encoding="utf-8")
 
 DATA_DIR = Path("../dataset/war_TCHBYGON/root")
-PROCESSED_DIR = Path("../dataset_processed")
+PROCESSED_DIR = Path("../dataset_classification")
 
 CLASSES = ["artillery", "ifv", "uav", "armored_vehicle", "apc", "infantry", "mlrs", "tank"]
 

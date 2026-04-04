@@ -2,9 +2,12 @@
 .venv/
 .idea/
 dataset/
-dataset_processed/
+dataset_detection/
+dataset_segmentation/
+dataset_classification/
 CLAUDE.md
 *.png
 *.jpg
 *.pt
 .env
+*.rar
