@@ -1,10 +1,12 @@
 import csv
 import json
+import shutil
 import sys
 from pathlib import Path
 from urllib.parse import unquote
 
 import numpy as np
+import torch
 from PIL import Image
 from pycocotools import mask as coco_mask
 
@@ -148,4 +150,51 @@ with open(BB_FILE, newline="", encoding="utf-8") as fin, \
         })
 
 print(f"  saved {BB_OUT}")
+
+print("preparing yolo detection dataset...")
+
+DETECT_DIR = BASE / "dataset_detection"
+
+ann_map: dict[str, list[dict]] = {}
+with open(BB_OUT, newline="", encoding="utf-8") as f:
+    for row in csv.DictReader(f):
+        ann_map.setdefault(row["image"], []).append(row)
+
+all_imgs = sorted(ann_map.keys())
+n        = len(all_imgs)
+n_train  = int(n * 0.7)
+indices  = torch.randperm(n, generator=torch.Generator().manual_seed(67)).tolist()
+
+for split, split_idx in [("train", indices[:n_train]), ("val", indices[n_train:])]:
+    (DETECT_DIR / "images" / split).mkdir(parents=True, exist_ok=True)
+    (DETECT_DIR / "labels" / split).mkdir(parents=True, exist_ok=True)
+
+    for i in split_idx:
+        fname    = all_imgs[i]
+        anns     = ann_map[fname]
+        cls_name = anns[0]["class"]
+
+        shutil.copy2(PROCESSED_DIR / cls_name / fname, DETECT_DIR / "images" / split / fname)
+
+        label_path = DETECT_DIR / "labels" / split / (Path(fname).stem + ".txt")
+        with open(label_path, "w", encoding="utf-8") as lf:
+            for ann in anns:
+                cls_id          = CLASSES.index(ann["class"])
+                xmin, ymin      = float(ann["xmin"]), float(ann["ymin"])
+                xmax, ymax      = float(ann["xmax"]), float(ann["ymax"])
+                cx = (xmin + xmax) / 2 / IMG_SIZE[0]
+                cy = (ymin + ymax) / 2 / IMG_SIZE[1]
+                w  = (xmax - xmin) / IMG_SIZE[0]
+                h  = (ymax - ymin) / IMG_SIZE[1]
+                lf.write(f"{cls_id} {cx:.6f} {cy:.6f} {w:.6f} {h:.6f}\n")
+
+with open(DETECT_DIR / "data.yaml", "w", encoding="utf-8") as f:
+    f.write(f"path: {DETECT_DIR}\n")
+    f.write("train: images/train\n")
+    f.write("val: images/val\n\n")
+    f.write(f"nc: {len(CLASSES)}\n")
+    f.write(f"names: {CLASSES}\n")
+
+print(f"  train: {n_train}  val: {n - n_train}")
+print(f"  saved {DETECT_DIR}")
 print("done")
