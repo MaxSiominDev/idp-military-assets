@@ -5,6 +5,7 @@ import sys
 from pathlib import Path
 from urllib.parse import unquote
 
+import cv2
 import numpy as np
 import torch
 from PIL import Image
@@ -14,7 +15,7 @@ sys.stdout.reconfigure(encoding="utf-8")
 
 BASE             = Path(__file__).parent.parent
 DATA_DIR         = BASE / "dataset"
-PROCESSED_DIR    = BASE / "dataset_processed"
+PROCESSED_DIR    = BASE / "dataset_classification"
 ANNOTATIONS_FILE = BASE / "annotations.json"
 
 CLASSES = ["gun", "spg", "ifv", "uav", "armored_vehicle", "apc", "infantry", "mlrs", "tank"]
@@ -204,4 +205,63 @@ with open(DETECT_DIR / "data.yaml", "w", encoding="utf-8") as f:
 
 print(f"  train: {n_train}  val: {n - n_train}")
 print(f"  saved {DETECT_DIR}")
+
+print("preparing yolo segmentation dataset...")
+
+SEG_DIR = BASE / "dataset_segmentation"
+
+seg_samples: list[tuple[str, str]] = []
+for c in CLASSES:
+    masks_dir = PROCESSED_DIR / c / "masks"
+    if not masks_dir.exists():
+        continue
+    for mask_path in masks_dir.glob("*.png"):
+        img_path = PROCESSED_DIR / c / (mask_path.stem + ".jpg")
+        if img_path.exists():
+            seg_samples.append((c, mask_path.stem))
+
+seg_samples.sort()
+n_seg     = len(seg_samples)
+n_seg_tr  = int(n_seg * 0.7)
+seg_idx   = torch.randperm(n_seg, generator=torch.Generator().manual_seed(67)).tolist()
+
+for split, split_idx in [("train", seg_idx[:n_seg_tr]), ("val", seg_idx[n_seg_tr:])]:
+    (SEG_DIR / "images" / split).mkdir(parents=True, exist_ok=True)
+    (SEG_DIR / "labels" / split).mkdir(parents=True, exist_ok=True)
+
+    for i in split_idx:
+        cls_name, stem = seg_samples[i]
+
+        shutil.copy2(
+            PROCESSED_DIR / cls_name / (stem + ".jpg"),
+            SEG_DIR / "images" / split / (stem + ".jpg"),
+        )
+
+        mask = cv2.imread(str(PROCESSED_DIR / cls_name / "masks" / (stem + ".png")), cv2.IMREAD_GRAYSCALE)
+        contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        if not contours:
+            continue
+
+        contour = max(contours, key=cv2.contourArea).squeeze()
+        if contour.ndim != 2 or len(contour) < 3:
+            continue
+
+        cls_id = CLASSES.index(cls_name)
+        pts: list[str] = []
+        for x, y in contour:
+            pts.extend([f"{x / IMG_SIZE[0]:.6f}", f"{y / IMG_SIZE[1]:.6f}"])
+
+        label_path = SEG_DIR / "labels" / split / (stem + ".txt")
+        with open(label_path, "w", encoding="utf-8") as lf:
+            lf.write(f"{cls_id} " + " ".join(pts) + "\n")
+
+with open(SEG_DIR / "data.yaml", "w", encoding="utf-8") as f:
+    f.write(f"path: {SEG_DIR}\n")
+    f.write("train: images/train\n")
+    f.write("val: images/val\n\n")
+    f.write(f"nc: {len(CLASSES)}\n")
+    f.write(f"names: {CLASSES}\n")
+
+print(f"  train: {n_seg_tr}  val: {n_seg - n_seg_tr}")
+print(f"  saved {SEG_DIR}")
 print("done")

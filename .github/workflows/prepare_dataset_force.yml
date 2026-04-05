@@ -30,6 +30,7 @@ jobs:
         run: |
           tar -czf dataset_processed.tar.gz dataset_processed/
           tar -czf dataset_detection.tar.gz dataset_detection/
+          tar -czf dataset_segmentation.tar.gz dataset_segmentation/
 
       - name: upload to s3
         env:
@@ -40,4 +41,6 @@ jobs:
           aws s3 cp dataset_processed.tar.gz s3://$YC_BUCKET_NAME/second/cv/dataset_processed.tar.gz \
             --endpoint-url https://storage.yandexcloud.net
           aws s3 cp dataset_detection.tar.gz s3://$YC_BUCKET_NAME/second/cv/dataset_detection.tar.gz \
+            --endpoint-url https://storage.yandexcloud.net
+          aws s3 cp dataset_segmentation.tar.gz s3://$YC_BUCKET_NAME/second/cv/dataset_segmentation.tar.gz \
             --endpoint-url https://storage.yandexcloud.net

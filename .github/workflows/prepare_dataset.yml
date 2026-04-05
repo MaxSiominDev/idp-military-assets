@@ -46,7 +46,7 @@ jobs:
 
       - name: archive
         if: env.S3_EXISTS == 'no'
-        run: tar -czf dataset_processed.tar.gz dataset_processed/
+        run: tar -czf dataset_classification.tar.gz dataset_classification/
 
       - name: upload to s3
         if: env.S3_EXISTS == 'no'

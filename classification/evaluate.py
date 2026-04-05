@@ -8,7 +8,7 @@ from torchvision import datasets, models, transforms
 RUN = "efficientnet_b0_2"
 
 BASE          = Path(__file__).parent.parent
-PROCESSED_DIR = BASE / "dataset_processed"
+PROCESSED_DIR = BASE / "dataset_classification"
 
 CLASSES     = ["gun", "spg", "ifv", "uav", "armored_vehicle", "apc", "infantry", "mlrs", "tank"]
 NUM_CLASSES = len(CLASSES)

@@ -1,0 +1,14 @@
+names:
+- gun
+- spg
+- ifv
+- uav
+- armored_vehicle
+- apc
+- infantry
+- mlrs
+- tank
+nc: 9
+path: C:\Users\Maxim\PycharmProjects\idp2_2\dataset_detection
+train: images/train
+val: images/val
